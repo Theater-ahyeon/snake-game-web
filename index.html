@@ -2217,6 +2217,7 @@ function update() {
         const points = state.powerUps.double > 0 ? 20 : 10;
         state.score += points;
         state.totalFood++;
+        console.log('Food eaten! Snake length before:', state.snake.length);
         spawnParticles(state.food.x * CONFIG.cellSize + CONFIG.cellSize / 2, state.food.y * CONFIG.cellSize + CONFIG.cellSize / 2, '#ff6b6b', 25);
         showScorePopup(state.food.x, state.food.y, `+${points}`);
         playSound('eat');
@@ -2224,6 +2225,7 @@ function update() {
         spawnPowerUp();
         checkAchievements();
         updateUI();
+        console.log('Food eaten! Snake length after:', state.snake.length);
     } else {
         state.snake.pop();
     }
@@ -2379,8 +2381,6 @@ function draw() {
         ctx.shadowBlur = isHead ? 25 : 12;
         const segGradient = ctx.createRadialGradient(x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2, 0, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2, CONFIG.cellSize / 2);
         if (isHead) { segGradient.addColorStop(0, headCol); segGradient.addColorStop(0.5, bodyCol); segGradient.addColorStop(1, bodyCol); }
-        else { segGradient.addColorStop(0, bodyCol); segGradient.addColorStop(1, bodyCol); }
-        else { segGradient.addColorStop(0, `hsl(${hue}, ${sat}%, ${light + 20}%)`); segGradient.addColorStop(1, `hsl(${hue}, ${sat}%, ${light}%)`); }
         ctx.fillStyle = segGradient;
         ctx.beginPath();
         ctx.roundRect(x + (isHead ? 1 : 2), y + (isHead ? 1 : 2), CONFIG.cellSize - (isHead ? 2 : 4), CONFIG.cellSize - (isHead ? 2 : 4), isHead ? 8 : 5);
