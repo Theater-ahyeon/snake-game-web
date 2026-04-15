@@ -1,0 +1,2904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snake Game Pro - 贪吃蛇</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-green: #00ff88;
+            --neon-cyan: #00ffcc;
+            --neon-pink: #ff00ff;
+            --neon-yellow: #ffcc00;
+            --neon-red: #ff4444;
+            --dark-bg: #0a0a0f;
+            --dark-secondary: #12121a;
+            --dark-tertiary: #1a1a2e;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--dark-bg);
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Starfield background */
+        .starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Grid background */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* Title */
+        .title-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: 8px;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan), var(--neon-green));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titleShimmer 4s linear infinite;
+            text-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
+            filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.3));
+        }
+
+        @keyframes titleShimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .subtitle {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 4px;
+            margin-top: 10px;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            padding: 15px 40px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 60px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow:
+                0 10px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 15px;
+            position: relative;
+        }
+
+        .stat:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--neon-green);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .stat-value.score {
+            color: var(--neon-yellow);
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+
+        .stat-value.highscore {
+            color: var(--neon-pink);
+            text-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+            font-size: 1.4rem;
+        }
+
+        .stat-value.length {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+
+        .stat-value.pulse {
+            animation: statPulse 0.3s ease;
+        }
+
+        @keyframes statPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Canvas wrapper */
+        .canvas-wrapper {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 2px rgba(0, 255, 136, 0.3),
+                0 0 60px rgba(0, 255, 136, 0.15),
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 0 100px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .canvas-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            background: linear-gradient(45deg, var(--neon-green), var(--neon-cyan), var(--neon-pink), var(--neon-cyan));
+            background-size: 400% 400%;
+            z-index: -1;
+            border-radius: 26px;
+            animation: borderRotate 6s ease infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes borderRotate {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .canvas-wrapper.shake {
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(0); }
+            10% { transform: translate(-8px, 6px); }
+            20% { transform: translate(8px, -6px); }
+            30% { transform: translate(-6px, -8px); }
+            40% { transform: translate(6px, 8px); }
+            50% { transform: translate(-8px, -6px); }
+            60% { transform: translate(8px, 6px); }
+            70% { transform: translate(-6px, 8px); }
+            80% { transform: translate(6px, -8px); }
+            90% { transform: translate(-8px, 6px); }
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #0d0d15 0%, #151525 100%);
+        }
+
+        /* Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 5, 10, 0.92);
+            backdrop-filter: blur(15px);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            border-radius: 24px;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .overlay-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: iconFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+        }
+
+        .overlay-title.start {
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .overlay-title.gameover {
+            background: linear-gradient(90deg, var(--neon-red), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gameoverPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes gameoverPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .final-score-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .final-score-label {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+
+        .final-score {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 5rem;
+            font-weight: 900;
+            background: linear-gradient(180deg, var(--neon-yellow) 0%, #ff8800 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(255, 204, 0, 0.5);
+            filter: drop-shadow(0 0 20px rgba(255, 204, 0, 0.3));
+        }
+
+        .new-highscore {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+            color: var(--neon-pink);
+            margin-top: 10px;
+            animation: newHighscore 0.5s ease infinite alternate;
+        }
+
+        @keyframes newHighscore {
+            0% { transform: scale(1); text-shadow: 0 0 10px var(--neon-pink); }
+            100% { transform: scale(1.1); text-shadow: 0 0 20px var(--neon-pink); }
+        }
+
+        .btn {
+            padding: 18px 55px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark-bg);
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn:active {
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+            padding: 12px 30px;
+            margin-top: 15px;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .instructions {
+            margin-top: 30px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        .instructions strong {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        /* Difficulty selector */
+        .difficulty-selector {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .difficulty-btn {
+            padding: 10px 25px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .difficulty-btn:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .difficulty-btn.active {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+        }
+
+        /* Game mode selector */
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .mode-btn {
+            padding: 8px 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-btn.active {
+            background: rgba(0, 255, 204, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+
+        /* Controls */
+        .controls-hint {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .key {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+
+        .key.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            transform: scale(0.92);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .key-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Touch controls */
+        .touch-controls {
+            display: none;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(3, 70px);
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 18px;
+            color: var(--neon-green);
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .touch-btn:active {
+            background: rgba(0, 255, 136, 0.3);
+            transform: scale(0.9);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.4);
+        }
+
+        .touch-btn.empty {
+            background: transparent;
+            border: none;
+        }
+
+        .touch-up { grid-column: 2; grid-row: 1; }
+        .touch-left { grid-column: 1; grid-row: 2; }
+        .touch-right { grid-column: 3; grid-row: 2; }
+        .touch-down { grid-column: 2; grid-row: 3; }
+
+        /* Pause indicator */
+        .pause-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 5;
+        }
+
+        .pause-indicator.visible {
+            opacity: 1;
+        }
+
+        .pause-indicator::before {
+            content: '⏸ ';
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+        }
+
+        /* Score popup */
+        .score-popup {
+            position: absolute;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
+            pointer-events: none;
+            animation: scorePopup 0.8s ease-out forwards;
+            z-index: 20;
+        }
+
+        @keyframes scorePopup {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(1.8);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .title { font-size: 2.2rem; letter-spacing: 4px; }
+            .subtitle { font-size: 0.5rem; }
+            .hud { gap: 15px; padding: 12px 20px; flex-wrap: wrap; justify-content: center; }
+            .stat { padding: 0 10px; }
+            .stat-value { font-size: 1.4rem; }
+            .stat-value.highscore { font-size: 1.1rem; }
+            .touch-controls { display: grid; }
+            .controls-hint { display: none; }
+            .overlay-title { font-size: 1.8rem; letter-spacing: 3px; }
+            .final-score { font-size: 3.5rem; }
+            .btn { padding: 15px 40px; font-size: 0.9rem; }
+        }
+
+        /* Sound toggle */
+        .sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 15;
+        }
+
+        .sound-toggle:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .sound-toggle.active {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        /* Snake trail effect */
+        .trail-glow {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: trailFade 0.5s ease-out forwards;
+        }
+
+        @keyframes trailFade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.3); }
+        }
+
+        /* ==================== Modal System ==================== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: linear-gradient(145deg, #1a1a2e 0%, #16162a 100%);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 450px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 136, 0.1);
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.visible .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-error {
+            color: var(--neon-red);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .form-error.visible {
+            display: block;
+        }
+
+        .modal-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .modal-tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-tab.active {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        /* Profile Modal */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .profile-info h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .profile-info p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .profile-stat {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .profile-stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neon-green);
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        .profile-stat-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        /* Leaderboard */
+        .leaderboard-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .leaderboard-rank {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .leaderboard-rank.gold {
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            color: #1a1a2e;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .leaderboard-rank.silver {
+            background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+            color: #1a1a2e;
+        }
+
+        .leaderboard-rank.bronze {
+            background: linear-gradient(135deg, #cd7f32, #b8860b);
+            color: #1a1a2e;
+        }
+
+        .leaderboard-rank.normal {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .leaderboard-info {
+            flex: 1;
+        }
+
+        .leaderboard-name {
+            font-weight: 600;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .leaderboard-mode {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .leaderboard-score {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+        }
+
+        /* Level Select */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .level-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .level-card:hover:not(.locked) {
+            border-color: var(--neon-green);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.15);
+        }
+
+        .level-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .level-card.locked::after {
+            content: '🔒';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+        }
+
+        .level-card.current {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .level-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--neon-green);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .level-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin: 8px 0 5px;
+        }
+
+        .level-desc {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .level-info {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .level-tag {
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .level-unlock {
+            font-size: 0.75rem;
+            color: var(--neon-yellow);
+            margin-top: 8px;
+        }
+
+        /* Saves List */
+        .saves-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .save-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .save-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(0, 255, 136, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .save-info {
+            flex: 1;
+        }
+
+        .save-name {
+            font-weight: 600;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .save-meta {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .save-score {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: var(--neon-yellow);
+        }
+
+        .save-delete {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: var(--neon-red);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .save-delete:hover {
+            background: rgba(255, 0, 0, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        /* User menu button */
+        .user-menu {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .user-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .user-btn.logged-in {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .user-avatar-small {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+
+        /* Menu buttons row */
+        .menu-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .menu-btn {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn:hover {
+            background: rgba(0, 255, 204, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .menu-btn.endless {
+            background: rgba(255, 0, 255, 0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+
+        .menu-btn.endless:hover {
+            background: rgba(255, 0, 255, 0.2);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.3);
+        }
+
+        /* Offline badge */
+        .offline-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 100, 100, 0.2);
+            border: 1px solid var(--neon-red);
+            border-radius: 25px;
+            color: var(--neon-red);
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 2000;
+            display: none;
+        }
+
+        .offline-badge.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="starfield" id="starfield"></div>
+    <div class="grid-bg"></div>
+
+    <div class="game-container">
+        <div class="title-container">
+            <h1 class="title">SNAKE</h1>
+            <p class="subtitle">专业版</p>
+        </div>
+
+        <div class="hud">
+            <div class="stat">
+                <span class="stat-label">Score</span>
+                <span class="stat-value score" id="score">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Length</span>
+                <span class="stat-value length" id="length">3</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Level</span>
+                <span class="stat-value" id="level">1</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Best</span>
+                <span class="stat-value highscore" id="highScore">0</span>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div class="pause-indicator" id="pauseIndicator">PAUSED</div>
+
+            <!-- Sound toggle -->
+            <button class="sound-toggle" id="soundToggle" title="Toggle Sound">🔊</button>
+
+            <!-- Start Screen -->
+            <div class="overlay visible" id="startScreen">
+                <div class="overlay-icon">🐍</div>
+                <h2 class="overlay-title start">准备好了吗?</h2>
+
+                <div class="difficulty-selector">
+                    <button class="difficulty-btn" data-speed="180">简单</button>
+                    <button class="difficulty-btn active" data-speed="120">普通</button>
+                    <button class="difficulty-btn" data-speed="80">困难</button>
+                    <button class="difficulty-btn" data-speed="50">专家</button>
+                </div>
+
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="classic">经典</button>
+                    <button class="mode-btn" data-mode="obstacles">障碍</button>
+                    <button class="mode-btn" data-mode="ghost">幽灵</button>
+                </div>
+
+                <button class="btn" id="startBtn">开始游戏</button>
+
+                <div class="instructions">
+                    <p>使用 <strong>W A S D</strong> 或 <strong>方向键</strong></p>
+                    <p>吃食物增长 • 避开墙壁和障碍物</p>
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div class="overlay" id="gameOverScreen">
+                <div class="overlay-icon">💀</div>
+                <h2 class="overlay-title gameover">游戏结束</h2>
+
+                <div class="final-score-container">
+                    <p class="final-score-label">最终得分</p>
+                    <p class="final-score" id="finalScore">0</p>
+                    <p class="new-highscore" id="newHighscore" style="display: none;">🎉 新纪录! 🎉</p>
+                </div>
+
+                <button class="btn" id="restartBtn">再玩一次</button>
+                <button class="btn btn-secondary" id="menuBtn">主菜单</button>
+            </div>
+        </div>
+
+        <!-- Keyboard controls visual -->
+        <div class="controls-hint">
+            <div class="key-row">
+                <div class="key" id="keyW">W</div>
+                <div style="display: flex; gap: 8px;">
+                    <div class="key" id="keyA">A</div>
+                    <div class="key" id="keyS">S</div>
+                    <div class="key" id="keyD">D</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch controls for mobile -->
+        <div class="touch-controls" id="touchControls">
+            <div class="touch-btn empty"></div>
+            <div class="touch-btn touch-up" data-dir="up">▲</div>
+            <div class="touch-btn empty"></div>
+            <div class="touch-btn touch-left" data-dir="left">◀</div>
+            <div class="touch-btn empty"></div>
+            <div class="touch-btn touch-right" data-dir="right">▶</div>
+            <div class="touch-btn empty"></div>
+            <div class="touch-btn touch-down" data-dir="down">▼</div>
+            <div class="touch-btn empty"></div>
+        </div>
+
+        <p class="footer">使用键盘或触屏控制</p>
+    </div>
+
+    <!-- Offline badge -->
+    <div class="offline-badge" id="offlineBadge">Offline Mode</div>
+
+    <!-- User Menu -->
+    <div class="user-menu">
+        <button class="user-btn" id="userBtn">
+            <span id="userIcon">👤</span>
+            <span id="userName">登录</span>
+        </button>
+    </div>
+
+    <!-- Login/Register Modal -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="authModalTitle">登录</h2>
+                <button class="modal-close" id="authModalClose">&times;</button>
+            </div>
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-tab="login">登录</button>
+                <button class="modal-tab" data-tab="register">注册</button>
+            </div>
+            <form id="authForm">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="authUsername" placeholder="输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="authPassword" placeholder="输入密码" required>
+                </div>
+                <div class="form-group" id="emailGroup" style="display: none;">
+                    <label class="form-label">邮箱 (可选)</label>
+                    <input type="email" class="form-input" id="authEmail" placeholder="输入邮箱">
+                </div>
+                <div class="form-error" id="authError"></div>
+                <button type="submit" class="btn" id="authSubmit" style="width: 100%; margin-top: 10px;">确定</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">个人资料</h2>
+                <button class="modal-close" id="profileModalClose">&times;</button>
+            </div>
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">🐍</div>
+                <div class="profile-info">
+                    <h3 id="profileName">玩家</h3>
+                    <p id="profileJoined">2024年加入</p>
+                </div>
+            </div>
+            <div class="profile-stats">
+                <div class="profile-stat">
+                    <div class="profile-stat-value" id="profileTotalScore">0</div>
+                    <div class="profile-stat-label">总分数</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-value" id="profileGamesPlayed">0</div>
+                    <div class="profile-stat-label">游戏次数</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-value" id="profileMaxLevel">1</div>
+                    <div class="profile-stat-label">最高关卡</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-value" id="profileMaxLength">3</div>
+                    <div class="profile-stat-label">最大长度</div>
+                </div>
+            </div>
+            <button class="btn" id="logoutBtn" style="width: 100%;">退出登录</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="modal-overlay" id="leaderboardModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">排行榜</h2>
+                <button class="modal-close" id="leaderboardModalClose">&times;</button>
+            </div>
+            <div class="mode-selector" style="margin-bottom: 20px;">
+                <button class="mode-btn active" data-lb-mode="all">全部</button>
+                <button class="mode-btn" data-lb-mode="classic">经典</button>
+                <button class="mode-btn" data-lb-mode="obstacles">障碍</button>
+                <button class="mode-btn" data-lb-mode="ghost">幽灵</button>
+                <button class="mode-btn" data-lb-mode="endless">无尽</button>
+            </div>
+            <div class="leaderboard-list" id="leaderboardList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏆</div>
+                    <p>暂无分数记录</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Select Modal -->
+    <div class="modal-overlay" id="levelModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">选择关卡</h2>
+                <button class="modal-close" id="levelModalClose">&times;</button>
+            </div>
+            <div class="level-grid" id="levelGrid">
+                <!-- Levels will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Saves Modal -->
+    <div class="modal-overlay" id="savesModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">游戏存档</h2>
+                <button class="modal-close" id="savesModalClose">&times;</button>
+            </div>
+            <div class="menu-buttons" style="margin-bottom: 20px;">
+                <button class="menu-btn" id="newSaveBtn">新游戏</button>
+            </div>
+            <div class="saves-list" id="savesList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💾</div>
+                    <p>暂无存档</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== Game Configuration ==============
+        const CONFIG = {
+            gridSize: 20,
+            cellSize: 25,
+            gameSpeed: 120,
+            obstacleCount: 10,
+            initialLength: 3,
+        };
+
+        // ============== Game State ==============
+        const state = {
+            snake: [],
+            direction: 'up',
+            nextDirection: 'up',
+            food: { x: 0, y: 0 },
+            obstacles: [],
+            ghostTrail: [],
+            score: 0,
+            level: 1,
+            highScore: parseInt(localStorage.getItem('snakeHighScore')) || 0,
+            gameState: 'start',
+            lastUpdate: 0,
+            particles: [],
+            foodPulse: 0,
+            soundEnabled: true,
+            gameMode: 'classic',
+            lastTail: null,
+            isEndless: false,
+            endlessStartTime: 0,
+            isLoggedIn: false,
+            userId: null,
+            username: null,
+            currentSaveId: null,
+        };
+
+        // ============== API Configuration ==============
+        const API_BASE = 'http://localhost:5000/api';
+
+        // ============== API Service ==============
+        const API = {
+            async request(endpoint, options = {}) {
+                const token = localStorage.getItem('snakeToken');
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint}`, {
+                        ...options,
+                        headers,
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Request failed');
+                    }
+                    return data;
+                } catch (error) {
+                    if (error.message === 'Failed to fetch') {
+                        showOfflineBadge();
+                    }
+                    throw error;
+                }
+            },
+
+            // Auth
+            async register(username, password, email) {
+                return this.request('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password, email }),
+                });
+            },
+
+            async login(username, password) {
+                return this.request('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password }),
+                });
+            },
+
+            async getProfile() {
+                return this.request('/auth/profile');
+            },
+
+            // Saves
+            async getSaves() {
+                return this.request('/saves');
+            },
+
+            async createSave(saveData) {
+                return this.request('/saves', {
+                    method: 'POST',
+                    body: JSON.stringify(saveData),
+                });
+            },
+
+            async loadSave(saveId) {
+                return this.request(`/saves/${saveId}`);
+            },
+
+            async updateSave(saveId, saveData) {
+                return this.request(`/saves/${saveId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(saveData),
+                });
+            },
+
+            async deleteSave(saveId) {
+                return this.request(`/saves/${saveId}`, {
+                    method: 'DELETE',
+                });
+            },
+
+            // Leaderboard
+            async getLeaderboard(gameMode = 'all') {
+                return this.request(`/leaderboard?game_mode=${gameMode}`);
+            },
+
+            async submitScore(score, gameMode, level) {
+                return this.request('/leaderboard', {
+                    method: 'POST',
+                    body: JSON.stringify({ score, game_mode: gameMode, level }),
+                });
+            },
+
+            // Endless
+            async submitEndless(score, length, timeAlive) {
+                return this.request('/endless', {
+                    method: 'POST',
+                    body: JSON.stringify({ score, length, time_alive: timeAlive }),
+                });
+            },
+
+            async getEndlessStats() {
+                return this.request('/endless/stats');
+            },
+
+            // Levels
+            async getLevels() {
+                return this.request('/levels');
+            },
+
+            async checkLevelUnlock(level) {
+                return this.request(`/levels/${level}/unlock`, { method: 'POST' });
+            },
+
+            // Stats
+            async getStats() {
+                return this.request('/stats');
+            },
+
+            // Achievements
+            async getAchievements() {
+                return this.request('/achievements');
+            },
+
+            async unlockAchievement(achievementId) {
+                return this.request('/achievements/unlock', {
+                    method: 'POST',
+                    body: JSON.stringify({ achievement_id: achievementId }),
+                });
+            },
+        };
+
+        // ============== Offline Detection ==============
+        function showOfflineBadge() {
+            document.getElementById('offlineBadge').classList.add('visible');
+            setTimeout(() => {
+                document.getElementById('offlineBadge').classList.remove('visible');
+            }, 3000);
+        }
+
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBadge').classList.remove('visible');
+        });
+
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineBadge').classList.add('visible');
+        });
+
+        // ============== User Management ==============
+        function updateUserUI() {
+            const userBtn = document.getElementById('userBtn');
+            const userIcon = document.getElementById('userIcon');
+            const userName = document.getElementById('userName');
+
+            if (state.isLoggedIn) {
+                userBtn.classList.add('logged-in');
+                userIcon.innerHTML = '<div class="user-avatar-small">🐍</div>';
+                userName.textContent = state.username;
+            } else {
+                userBtn.classList.remove('logged-in');
+                userIcon.textContent = '👤';
+                userName.textContent = 'Login';
+            }
+        }
+
+        async function checkAuth() {
+            const token = localStorage.getItem('snakeToken');
+            const username = localStorage.getItem('snakeUsername');
+            if (token && username) {
+                state.isLoggedIn = true;
+                state.username = username;
+                state.userId = localStorage.getItem('snakeUserId');
+                updateUserUI();
+            }
+        }
+
+        async function handleLogin(username, password) {
+            try {
+                const data = await API.login(username, password);
+                localStorage.setItem('snakeToken', data.token);
+                localStorage.setItem('snakeUsername', data.username);
+                localStorage.setItem('snakeUserId', data.user_id);
+                state.isLoggedIn = true;
+                state.username = data.username;
+                state.userId = data.user_id;
+                updateUserUI();
+                closeModal('authModal');
+                updateProfileModal();
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function handleRegister(username, password, email) {
+            try {
+                const data = await API.register(username, password, email);
+                localStorage.setItem('snakeToken', data.token || String(data.user_id));
+                localStorage.setItem('snakeUsername', data.username);
+                localStorage.setItem('snakeUserId', data.user_id);
+                state.isLoggedIn = true;
+                state.username = data.username;
+                state.userId = data.user_id;
+                updateUserUI();
+                closeModal('authModal');
+                updateProfileModal();
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('snakeToken');
+            localStorage.removeItem('snakeUsername');
+            localStorage.removeItem('snakeUserId');
+            state.isLoggedIn = false;
+            state.username = null;
+            state.userId = null;
+            updateUserUI();
+            closeModal('profileModal');
+        }
+
+        async function updateProfileModal() {
+            if (!state.isLoggedIn) return;
+            try {
+                const profile = await API.getProfile();
+                const user = profile.user;
+                const progress = profile.progress;
+
+                document.getElementById('profileName').textContent = user.username;
+                document.getElementById('profileJoined').textContent = `Member since ${new Date(user.created_at).toLocaleDateString()}`;
+                document.getElementById('profileTotalScore').textContent = progress?.total_score || 0;
+                document.getElementById('profileGamesPlayed').textContent = progress?.games_played || 0;
+                document.getElementById('profileMaxLevel').textContent = progress?.max_level || 1;
+                document.getElementById('profileMaxLength').textContent = progress?.max_length || 3;
+            } catch (error) {
+                console.log('Profile update failed:', error);
+            }
+        }
+
+        // ============== Modal System ==============
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('visible');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('visible');
+        }
+
+        function setupModal(modals) {
+            modals.forEach(({ modalId, openBtnId, closeBtnId, onOpen }) => {
+                const modal = document.getElementById(modalId);
+                const openBtn = openBtnId ? document.getElementById(openBtnId) : null;
+                const closeBtn = document.getElementById(closeBtnId);
+
+                if (openBtn) {
+                    openBtn.addEventListener('click', () => {
+                        if (onOpen) onOpen();
+                        openModal(modalId);
+                    });
+                }
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => closeModal(modalId));
+                }
+
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal(modalId);
+                });
+            });
+        }
+
+        // ============== Auth Modal ==============
+        let authMode = 'login';
+
+        function setupAuthModal() {
+            const modal = document.getElementById('authModal');
+            const tabs = modal.querySelectorAll('.modal-tab');
+            const emailGroup = document.getElementById('emailGroup');
+            const submitBtn = document.getElementById('authSubmit');
+            const authForm = document.getElementById('authForm');
+            const errorEl = document.getElementById('authError');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    authMode = tab.dataset.tab;
+                    emailGroup.style.display = authMode === 'register' ? 'block' : 'none';
+                    submitBtn.textContent = authMode === 'login' ? '登录' : '注册';
+                    document.getElementById('authModalTitle').textContent = authMode === 'login' ? '登录' : '注册';
+                    errorEl.classList.remove('visible');
+                });
+            });
+
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('authUsername').value;
+                const password = document.getElementById('authPassword').value;
+                const email = document.getElementById('authEmail').value;
+
+                errorEl.classList.remove('visible');
+
+                let result;
+                if (authMode === 'login') {
+                    result = await handleLogin(username, password);
+                } else {
+                    result = await handleRegister(username, password, email);
+                }
+
+                if (!result.success) {
+                    errorEl.textContent = result.error;
+                    errorEl.classList.add('visible');
+                } else {
+                    authForm.reset();
+                }
+            });
+        }
+
+        // ============== Leaderboard Modal ==============
+        let currentLeaderboardMode = 'all';
+
+        async function updateLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            try {
+                const data = await API.getLeaderboard(currentLeaderboardMode);
+                if (data.leaderboard.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🏆</div>
+                            <p>No scores yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = data.leaderboard.map((entry, index) => {
+                    const rank = index + 1;
+                    let rankClass = 'normal';
+                    if (rank === 1) rankClass = 'gold';
+                    else if (rank === 2) rankClass = 'silver';
+                    else if (rank === 3) rankClass = 'bronze';
+
+                    return `
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-rank ${rankClass}">${rank}</div>
+                            <div class="leaderboard-info">
+                                <div class="leaderboard-name">${escapeHtml(entry.username)}</div>
+                                <div class="leaderboard-mode">Level ${entry.level} • ${entry.game_mode}</div>
+                            </div>
+                            <div class="leaderboard-score">${entry.score}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>Failed to load leaderboard</p>
+                    </div>
+                `;
+            }
+        }
+
+        function setupLeaderboardModal() {
+            const modal = document.getElementById('leaderboardModal');
+            const modeBtns = modal.querySelectorAll('.mode-btn');
+
+            modeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentLeaderboardMode = btn.dataset.lbMode;
+                    updateLeaderboard();
+                });
+            });
+        }
+
+        // ============== Level Select Modal ==============
+        const LEVEL_CONFIGS = [
+            { level: 1, name: '初出茅庐', description: '经典模式，热身关卡', mapSize: 20, obstacleCount: 0, speed: 150 },
+            { level: 2, name: '小试牛刀', description: '开始出现障碍物', mapSize: 20, obstacleCount: 5, speed: 140 },
+            { level: 3, name: '稳步提升', description: '障碍物增多', mapSize: 20, obstacleCount: 10, speed: 130 },
+            { level: 4, name: '身手不凡', description: '挑战升级', mapSize: 25, obstacleCount: 15, speed: 120 },
+            { level: 5, name: '炉火纯青', description: '大师级别', mapSize: 25, obstacleCount: 20, speed: 110 },
+            { level: 6, name: '出神入化', description: '接近巅峰', mapSize: 30, obstacleCount: 25, speed: 100 },
+            { level: 7, name: '登峰造极', description: '最高难度', mapSize: 30, obstacleCount: 35, speed: 90 },
+            { level: 8, name: '独孤求败', description: '极限挑战', mapSize: 35, obstacleCount: 45, speed: 80 },
+        ];
+
+        async function updateLevelSelect() {
+            const grid = document.getElementById('levelGrid');
+            let html = '';
+
+            for (const lvl of LEVEL_CONFIGS) {
+                let unlocked = true;
+                let unlockScore = [0, 100, 300, 600, 1000, 1500, 2500, 4000][lvl.level - 1];
+
+                if (state.isLoggedIn) {
+                    try {
+                        const result = await API.checkLevelUnlock(lvl.level);
+                        unlocked = result.unlocked;
+                    } catch (e) {}
+                }
+
+                html += `
+                    <div class="level-card ${unlocked ? '' : 'locked'} ${state.level === lvl.level ? 'current' : ''}"
+                         data-level="${lvl.level}" ${unlocked ? '' : 'title="Score more to unlock"'}>
+                        <div class="level-number">${lvl.level}</div>
+                        <div class="level-name">${lvl.name}</div>
+                        <div class="level-desc">${lvl.description}</div>
+                        <div class="level-info">
+                            <span class="level-tag">${lvl.mapSize}×${lvl.mapSize}</span>
+                            <span class="level-tag">${lvl.obstacleCount} 障碍</span>
+                            <span class="level-tag">${lvl.speed}ms</span>
+                        </div>
+                        ${!unlocked ? `<div class="level-unlock">需 ${unlockScore} 分解锁</div>` : ''}
+                    </div>
+                `;
+            }
+
+            grid.innerHTML = html;
+
+            grid.querySelectorAll('.level-card:not(.locked)').forEach(card => {
+                card.addEventListener('click', () => {
+                    const level = parseInt(card.dataset.level);
+                    selectLevel(level);
+                    closeModal('levelModal');
+                });
+            });
+        }
+
+        function selectLevel(level) {
+            const lvl = LEVEL_CONFIGS.find(l => l.level === level);
+            if (!lvl) return;
+
+            CONFIG.gridSize = lvl.mapSize;
+            CONFIG.obstacleCount = lvl.obstacleCount;
+            CONFIG.gameSpeed = lvl.speed;
+            state.level = level;
+            state.isEndless = false;
+            document.getElementById('level').textContent = level;
+        }
+
+        function setupLevelModal() {
+            const modal = document.getElementById('levelModal');
+            modal.addEventListener('scroll', () => {
+                if (modal.classList.contains('visible')) {
+                    updateLevelSelect();
+                }
+            });
+        }
+
+        // ============== Saves Modal ==============
+        async function updateSavesList() {
+            const list = document.getElementById('savesList');
+            if (!state.isLoggedIn) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔒</div>
+                        <p>Please login to view saves</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const data = await API.getSaves();
+                if (data.saves.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💾</div>
+                            <p>No saves yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = data.saves.map(save => `
+                    <div class="save-item" data-save-id="${save.id}">
+                        <div class="save-icon">🎮</div>
+                        <div class="save-info">
+                            <div class="save-name">${escapeHtml(save.save_name)}</div>
+                            <div class="save-meta">${save.game_mode} • ${save.difficulty} • Lv.${save.level}</div>
+                        </div>
+                        <div class="save-score">${save.score}</div>
+                        <button class="save-delete" data-save-id="${save.id}">×</button>
+                    </div>
+                `).join('');
+
+                list.querySelectorAll('.save-item').forEach(item => {
+                    item.addEventListener('click', async (e) => {
+                        if (e.target.classList.contains('save-delete')) {
+                            e.stopPropagation();
+                            const saveId = e.target.dataset.saveId;
+                            if (confirm('Delete this save?')) {
+                                await API.deleteSave(parseInt(saveId));
+                                updateSavesList();
+                            }
+                            return;
+                        }
+                        const saveId = parseInt(item.dataset.saveId);
+                        await loadGameSave(saveId);
+                    });
+                });
+            } catch (error) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>Failed to load saves</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadGameSave(saveId) {
+            try {
+                const data = await API.loadSave(saveId);
+                const save = data.save;
+
+                state.score = save.score;
+                state.level = save.level;
+                state.gameMode = save.game_mode;
+                state.currentSaveId = saveId;
+
+                const gameState = JSON.parse(save.game_state);
+                state.snake = gameState.snake || [];
+                state.direction = gameState.direction || 'up';
+                state.obstacles = gameState.obstacles || [];
+                state.food = gameState.food || { x: 0, y: 0 };
+
+                CONFIG.gridSize = gameState.gridSize || 20;
+                CONFIG.obstacleCount = state.obstacles.length;
+                CONFIG.gameSpeed = gameState.gameSpeed || 120;
+
+                updateDisplay();
+                closeModal('savesModal');
+                startGame();
+            } catch (error) {
+                alert('Failed to load save: ' + error.message);
+            }
+        }
+
+        async function saveCurrentGame() {
+            if (!state.isLoggedIn) {
+                alert('Please login to save game');
+                openModal('authModal');
+                return;
+            }
+
+            const gameState = {
+                snake: state.snake,
+                direction: state.direction,
+                obstacles: state.obstacles,
+                food: state.food,
+                gridSize: CONFIG.gridSize,
+                gameSpeed: CONFIG.gameSpeed,
+            };
+
+            try {
+                if (state.currentSaveId) {
+                    await API.updateSave(state.currentSaveId, {
+                        save_name: `Continue - ${state.gameMode} Lv.${state.level}`,
+                        game_mode: state.gameMode,
+                        difficulty: state.gameMode,
+                        level: state.level,
+                        score: state.score,
+                        snake_length: state.snake.length,
+                        game_state: JSON.stringify(gameState),
+                    });
+                } else {
+                    const result = await API.createSave({
+                        save_name: `Game - ${state.gameMode} Lv.${state.level}`,
+                        game_mode: state.gameMode,
+                        difficulty: state.gameMode,
+                        level: state.level,
+                        score: state.score,
+                        snake_length: state.snake.length,
+                        game_state: JSON.stringify(gameState),
+                    });
+                    state.currentSaveId = result.save_id;
+                }
+                alert('Game saved!');
+            } catch (error) {
+                alert('Save failed: ' + error.message);
+            }
+        }
+
+        function setupSavesModal() {
+            document.getElementById('newSaveBtn').addEventListener('click', () => {
+                state.currentSaveId = null;
+                closeModal('savesModal');
+                showMenu();
+            });
+        }
+
+        // ============== Endless Mode ==============
+        function startEndlessMode() {
+            state.isEndless = true;
+            state.endlessStartTime = Date.now();
+            state.level = 1;
+            CONFIG.gridSize = 20;
+            CONFIG.obstacleCount = 0;
+            CONFIG.gameSpeed = 100;
+            document.getElementById('level').textContent = '∞';
+            closeModal('levelModal');
+            startGame();
+        }
+
+        async function submitEndlessScore() {
+            if (!state.isLoggedIn || !state.isEndless) return;
+
+            const timeAlive = Math.floor((Date.now() - state.endlessStartTime) / 1000);
+            try {
+                const result = await API.submitEndless(state.score, state.snake.length, timeAlive);
+                if (result.best_score && result.best_score === state.score) {
+                    showNotification('🎉 New Endless Record!');
+                }
+            } catch (error) {
+                console.log('Endless submit failed:', error);
+            }
+        }
+
+        // ============== Submit Score ==============
+        async function submitGameScore() {
+            if (!state.isLoggedIn) return;
+
+            try {
+                if (state.isEndless) {
+                    await submitEndlessScore();
+                } else {
+                    await API.submitScore(state.score, state.gameMode, state.level);
+                }
+            } catch (error) {
+                console.log('Score submit failed:', error);
+            }
+        }
+
+        // ============== Helper ==============
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.className = 'score-popup';
+            notif.textContent = message;
+            notif.style.left = '50%';
+            notif.style.top = '50%';
+            notif.style.transform = 'translate(-50%, -50%)';
+            notif.style.fontSize = '2rem';
+            document.querySelector('.canvas-wrapper').appendChild(notif);
+            setTimeout(() => notif.remove(), 1500);
+        }
+
+        // ============== Audio Context ==============
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!state.soundEnabled || !audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'eat':
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'die':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.4);
+                    break;
+                case 'move':
+                    oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.05);
+                    break;
+            }
+        }
+
+        // ============== Canvas Setup ==============
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasSize = CONFIG.gridSize * CONFIG.cellSize;
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+
+        // ============== DOM Elements ==============
+        const scoreEl = document.getElementById('score');
+        const lengthEl = document.getElementById('length');
+        const levelEl = document.getElementById('level');
+        const highScoreEl = document.getElementById('highScore');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreEl = document.getElementById('finalScore');
+        const newHighscoreEl = document.getElementById('newHighscore');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const menuBtn = document.getElementById('menuBtn');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const pauseIndicator = document.getElementById('pauseIndicator');
+        const soundToggle = document.getElementById('soundToggle');
+
+        highScoreEl.textContent = state.highScore;
+
+        // ============== Background Effects ==============
+        function createStarfield() {
+            const container = document.getElementById('starfield');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (2 + Math.random() * 3) + 's';
+                star.style.width = (1 + Math.random() * 2) + 'px';
+                star.style.height = star.style.width;
+                container.appendChild(star);
+            }
+        }
+        createStarfield();
+
+        // ============== Particle System ==============
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 6 + 3;
+                this.speedX = (Math.random() - 0.5) * 8;
+                this.speedY = (Math.random() - 0.5) * 8;
+                this.life = 1;
+                this.decay = Math.random() * 0.025 + 0.015;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.speedX *= 0.98;
+                this.speedY *= 0.98;
+                this.life -= this.decay;
+                this.size *= 0.97;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function spawnParticles(x, y, color, count = 15) {
+            for (let i = 0; i < count; i++) {
+                state.particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function updateParticles() {
+            state.particles = state.particles.filter(p => p.life > 0);
+            state.particles.forEach(p => p.update());
+        }
+
+        function drawParticles(ctx) {
+            state.particles.forEach(p => p.draw(ctx));
+        }
+
+        // ============== Game Initialization ==============
+        function initGame() {
+            const centerX = Math.floor(CONFIG.gridSize / 2);
+            const centerY = Math.floor(CONFIG.gridSize / 2);
+
+            state.snake = [];
+            for (let i = 0; i < CONFIG.initialLength; i++) {
+                state.snake.push({ x: centerX, y: centerY + i });
+            }
+
+            state.direction = 'up';
+            state.nextDirection = 'up';
+            state.score = 0;
+            state.level = 1;
+            state.particles = [];
+            state.ghostTrail = [];
+
+            if (state.gameMode === 'obstacles' || state.gameMode === 'classic') {
+                generateObstacles();
+            } else {
+                state.obstacles = [];
+            }
+
+            spawnFood();
+            updateUI();
+        }
+
+        function generateObstacles() {
+            state.obstacles = [];
+            let count = 0;
+
+            while (count < CONFIG.obstacleCount) {
+                const x = Math.floor(Math.random() * (CONFIG.gridSize - 2)) + 1;
+                const y = Math.floor(Math.random() * (CONFIG.gridSize - 2)) + 1;
+
+                const isOnSnake = state.snake.some(s => s.x === x && s.y === y);
+                const isOnObstacle = state.obstacles.some(o => o.x === x && o.y === y);
+
+                if (!isOnSnake && !isOnObstacle) {
+                    state.obstacles.push({ x, y });
+                    count++;
+                }
+            }
+        }
+
+        function spawnFood() {
+            let validPosition = false;
+            let attempts = 0;
+
+            while (!validPosition && attempts < 1000) {
+                const x = Math.floor(Math.random() * (CONFIG.gridSize - 2)) + 1;
+                const y = Math.floor(Math.random() * (CONFIG.gridSize - 2)) + 1;
+
+                const isOnSnake = state.snake.some(s => s.x === x && s.y === y);
+                const isOnObstacle = state.obstacles.some(o => o.x === x && o.y === y);
+
+                if (!isOnSnake && !isOnObstacle) {
+                    state.food = { x, y };
+                    validPosition = true;
+                }
+                attempts++;
+            }
+        }
+
+        // ============== Game Logic ==============
+        function update() {
+            if (state.gameState !== 'playing') return;
+
+            state.direction = state.nextDirection;
+
+            const head = { ...state.snake[0] };
+
+            switch (state.direction) {
+                case 'up': head.y--; break;
+                case 'down': head.y++; break;
+                case 'left': head.x--; break;
+                case 'right': head.x++; break;
+            }
+
+            // Ghost trail in ghost mode
+            if (state.gameMode === 'ghost') {
+                state.ghostTrail.push({ ...state.snake[state.snake.length - 1], life: 1 });
+                if (state.ghostTrail.length > 5) state.ghostTrail.shift();
+                state.ghostTrail.forEach(g => g.life -= 0.15);
+                state.ghostTrail = state.ghostTrail.filter(g => g.life > 0);
+            }
+
+            // Wall collision
+            if (head.x <= 0 || head.x >= CONFIG.gridSize - 1 ||
+                head.y <= 0 || head.y >= CONFIG.gridSize - 1) {
+                gameOver();
+                return;
+            }
+
+            // Obstacle collision
+            if (state.obstacles.some(o => o.x === head.x && o.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            // Self collision
+            if (state.snake.some(s => s.x === head.x && s.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            // Store last tail for trail effect
+            state.lastTail = { ...state.snake[state.snake.length - 1] };
+
+            // Add new head
+            state.snake.unshift(head);
+
+            // Food collision
+            if (head.x === state.food.x && head.y === state.food.y) {
+                state.score += 10;
+                playSound('eat');
+                showScorePopup(state.food.x, state.food.y);
+                spawnParticles(
+                    state.food.x * CONFIG.cellSize + CONFIG.cellSize / 2,
+                    state.food.y * CONFIG.cellSize + CONFIG.cellSize / 2,
+                    '#ffcc00',
+                    25
+                );
+
+                // Level up every 50 points
+                state.level = Math.floor(state.score / 50) + 1;
+
+                spawnFood();
+                updateUI();
+            } else {
+                state.snake.pop();
+            }
+        }
+
+        function updateUI() {
+            scoreEl.textContent = state.score;
+            lengthEl.textContent = state.snake.length;
+            levelEl.textContent = state.isEndless ? '∞' : state.level;
+
+            // Pulse animation
+            scoreEl.classList.add('pulse');
+            lengthEl.classList.add('pulse');
+            setTimeout(() => {
+                scoreEl.classList.remove('pulse');
+                lengthEl.classList.remove('pulse');
+            }, 300);
+        }
+
+        function showScorePopup(gridX, gridY) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = '+10';
+            popup.style.left = (gridX * CONFIG.cellSize + CONFIG.cellSize / 2) + 'px';
+            popup.style.top = (gridY * CONFIG.cellSize + CONFIG.cellSize / 2) + 'px';
+            canvasWrapper.appendChild(popup);
+            setTimeout(() => popup.remove(), 800);
+        }
+
+        function gameOver() {
+            state.gameState = 'gameover';
+            playSound('die');
+
+            const isNewHighScore = state.score > state.highScore;
+            if (isNewHighScore) {
+                state.highScore = state.score;
+                localStorage.setItem('snakeHighScore', state.highScore);
+                highScoreEl.textContent = state.highScore;
+            }
+
+            finalScoreEl.textContent = state.score;
+            newHighscoreEl.style.display = isNewHighScore ? 'block' : 'none';
+
+            gameOverScreen.classList.add('visible');
+            canvasWrapper.classList.add('shake');
+            setTimeout(() => canvasWrapper.classList.remove('shake'), 400);
+
+            // Submit score to backend
+            submitGameScore();
+
+            // Death particles
+            const head = state.snake[0];
+            spawnParticles(
+                head.x * CONFIG.cellSize + CONFIG.cellSize / 2,
+                head.y * CONFIG.cellSize + CONFIG.cellSize / 2,
+                '#ff4444',
+                40
+            );
+        }
+
+        function startGame() {
+            initAudio();
+            state.gameState = 'playing';
+            initGame();
+            startScreen.classList.remove('visible');
+            gameOverScreen.classList.remove('visible');
+            state.lastUpdate = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function showMenu() {
+            state.gameState = 'start';
+            state.isEndless = false;
+            state.currentSaveId = null;
+            gameOverScreen.classList.remove('visible');
+            startScreen.classList.add('visible');
+            document.getElementById('level').textContent = state.level;
+        }
+
+        // ============== Drawing ==============
+        function draw() {
+            // Clear with gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0d0d15');
+            gradient.addColorStop(1, '#151525');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= CONFIG.gridSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * CONFIG.cellSize, 0);
+                ctx.lineTo(i * CONFIG.cellSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * CONFIG.cellSize);
+                ctx.lineTo(canvas.width, i * CONFIG.cellSize);
+                ctx.stroke();
+            }
+
+            // Draw walls
+            const wallGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            wallGradient.addColorStop(0, '#2a2a3a');
+            wallGradient.addColorStop(0.5, '#1a1a2a');
+            wallGradient.addColorStop(1, '#2a2a3a');
+            ctx.fillStyle = wallGradient;
+
+            ctx.fillRect(0, 0, canvas.width, CONFIG.cellSize);
+            ctx.fillRect(0, canvas.height - CONFIG.cellSize, canvas.width, CONFIG.cellSize);
+            ctx.fillRect(0, 0, CONFIG.cellSize, canvas.height);
+            ctx.fillRect(canvas.width - CONFIG.cellSize, 0, CONFIG.cellSize, canvas.height);
+
+            // Draw ghost trail
+            if (state.gameMode === 'ghost') {
+                state.ghostTrail.forEach(g => {
+                    const x = g.x * CONFIG.cellSize;
+                    const y = g.y * CONFIG.cellSize;
+                    ctx.save();
+                    ctx.globalAlpha = g.life * 0.3;
+                    ctx.fillStyle = '#8800ff';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#8800ff';
+                    ctx.beginPath();
+                    ctx.roundRect(x + 3, y + 3, CONFIG.cellSize - 6, CONFIG.cellSize - 6, 6);
+                    ctx.fill();
+                    ctx.restore();
+                });
+            }
+
+            // Draw obstacles
+            state.obstacles.forEach(obs => {
+                const x = obs.x * CONFIG.cellSize;
+                const y = obs.y * CONFIG.cellSize;
+
+                ctx.shadowColor = '#555';
+                ctx.shadowBlur = 12;
+
+                const obsGradient = ctx.createLinearGradient(x, y, x + CONFIG.cellSize, y + CONFIG.cellSize);
+                obsGradient.addColorStop(0, '#4a4a5a');
+                obsGradient.addColorStop(1, '#3a3a4a');
+                ctx.fillStyle = obsGradient;
+                ctx.beginPath();
+                ctx.roundRect(x + 2, y + 2, CONFIG.cellSize - 4, CONFIG.cellSize - 4, 6);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw food with pulsing glow
+            state.foodPulse += 0.12;
+            const pulseSize = Math.sin(state.foodPulse) * 4 + 4;
+            const foodX = state.food.x * CONFIG.cellSize + CONFIG.cellSize / 2;
+            const foodY = state.food.y * CONFIG.cellSize + CONFIG.cellSize / 2;
+
+            // Outer glow
+            ctx.shadowColor = '#ff6b6b';
+            ctx.shadowBlur = 20 + pulseSize;
+
+            const foodGradient = ctx.createRadialGradient(foodX, foodY, 0, foodX, foodY, CONFIG.cellSize / 2);
+            foodGradient.addColorStop(0, '#ffaaaa');
+            foodGradient.addColorStop(0.4, '#ff6b6b');
+            foodGradient.addColorStop(1, '#cc4444');
+
+            ctx.fillStyle = foodGradient;
+            ctx.beginPath();
+            ctx.arc(foodX, foodY, CONFIG.cellSize / 2 - 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Food shine
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.arc(foodX - 3, foodY - 3, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+
+            // Draw snake
+            state.snake.forEach((segment, index) => {
+                const x = segment.x * CONFIG.cellSize;
+                const y = segment.y * CONFIG.cellSize;
+                const isHead = index === 0;
+                const segmentProgress = index / state.snake.length;
+
+                // Color gradient from head to tail
+                const hue = 140 + segmentProgress * 40;
+                const sat = 85;
+                const light = 45 + segmentProgress * 15;
+
+                // Glow
+                ctx.shadowColor = `hsl(${hue}, ${sat}%, ${light}%)`;
+                ctx.shadowBlur = isHead ? 25 : 12;
+
+                // Segment body
+                const segGradient = ctx.createRadialGradient(
+                    x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2, 0,
+                    x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2, CONFIG.cellSize / 2
+                );
+
+                if (isHead) {
+                    segGradient.addColorStop(0, '#00ffaa');
+                    segGradient.addColorStop(0.5, '#00dd77');
+                    segGradient.addColorStop(1, '#00aa55');
+                } else {
+                    segGradient.addColorStop(0, `hsl(${hue}, ${sat}%, ${light + 20}%)`);
+                    segGradient.addColorStop(1, `hsl(${hue}, ${sat}%, ${light}%)`);
+                }
+
+                ctx.fillStyle = segGradient;
+                ctx.beginPath();
+                ctx.roundRect(x + (isHead ? 1 : 2), y + (isHead ? 1 : 2),
+                    CONFIG.cellSize - (isHead ? 2 : 4), CONFIG.cellSize - (isHead ? 2 : 4),
+                    isHead ? 8 : 5);
+                ctx.fill();
+
+                // Draw eyes on head
+                if (isHead) {
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'white';
+
+                    let eye1 = { x: 0, y: 0 }, eye2 = { x: 0, y: 0 };
+                    const offset = 6;
+                    const eyeSize = 4;
+
+                    switch (state.direction) {
+                        case 'up':
+                            eye1 = { x: x + CONFIG.cellSize / 2 - offset, y: y + CONFIG.cellSize / 2 - 3 };
+                            eye2 = { x: x + CONFIG.cellSize / 2 + offset, y: y + CONFIG.cellSize / 2 - 3 };
+                            break;
+                        case 'down':
+                            eye1 = { x: x + CONFIG.cellSize / 2 - offset, y: y + CONFIG.cellSize / 2 + 3 };
+                            eye2 = { x: x + CONFIG.cellSize / 2 + offset, y: y + CONFIG.cellSize / 2 + 3 };
+                            break;
+                        case 'left':
+                            eye1 = { x: x + CONFIG.cellSize / 2 - 3, y: y + CONFIG.cellSize / 2 - offset };
+                            eye2 = { x: x + CONFIG.cellSize / 2 - 3, y: y + CONFIG.cellSize / 2 + offset };
+                            break;
+                        case 'right':
+                            eye1 = { x: x + CONFIG.cellSize / 2 + 3, y: y + CONFIG.cellSize / 2 - offset };
+                            eye2 = { x: x + CONFIG.cellSize / 2 + 3, y: y + CONFIG.cellSize / 2 + offset };
+                            break;
+                    }
+
+                    // Left eye
+                    ctx.beginPath();
+                    ctx.arc(eye1.x, eye1.y, eyeSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Right eye
+                    ctx.beginPath();
+                    ctx.arc(eye2.x, eye2.y, eyeSize, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pupils
+                    ctx.fillStyle = '#111';
+                    ctx.beginPath();
+                    ctx.arc(eye1.x, eye1.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(eye2.x, eye2.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw particles
+            updateParticles();
+            drawParticles(ctx);
+        }
+
+        // ============== Game Loop ==============
+        function gameLoop(timestamp) {
+            if (state.gameState !== 'playing' && state.gameState !== 'gameover') return;
+
+            const speed = CONFIG.gameSpeed - (state.level - 1) * 5;
+            const adjustedSpeed = Math.max(speed, 30);
+
+            if (timestamp - state.lastUpdate >= adjustedSpeed) {
+                update();
+                state.lastUpdate = timestamp;
+            }
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============== Input Handling ==============
+        function handleDirection(dir) {
+            if (state.gameState !== 'playing') return;
+            if (dir === 'up' && state.direction !== 'down') state.nextDirection = 'up';
+            if (dir === 'down' && state.direction !== 'up') state.nextDirection = 'down';
+            if (dir === 'left' && state.direction !== 'right') state.nextDirection = 'left';
+            if (dir === 'right' && state.direction !== 'left') state.nextDirection = 'right';
+            playSound('move');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // Visual feedback
+            const keyMap = {
+                'w': 'keyW', 'W': 'keyW', 'ArrowUp': 'keyW',
+                'a': 'keyA', 'A': 'keyA', 'ArrowLeft': 'keyA',
+                's': 'keyS', 'S': 'keyS', 'ArrowDown': 'keyS',
+                'd': 'keyD', 'D': 'keyD', 'ArrowRight': 'keyD',
+            };
+
+            const keyEl = document.getElementById(keyMap[e.key]);
+            if (keyEl) {
+                keyEl.classList.add('active');
+                setTimeout(() => keyEl.classList.remove('active'), 100);
+            }
+
+            switch (e.key.toLowerCase()) {
+                case 'w': case 'arrowup': handleDirection('up'); break;
+                case 's': case 'arrowdown': handleDirection('down'); break;
+                case 'a': case 'arrowleft': handleDirection('left'); break;
+                case 'd': case 'arrowright': handleDirection('right'); break;
+            }
+
+            e.preventDefault();
+        });
+
+        // Touch controls
+        document.querySelectorAll('.touch-btn[data-dir]').forEach(btn => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleDirection(btn.dataset.dir);
+            });
+            btn.addEventListener('click', () => {
+                handleDirection(btn.dataset.dir);
+            });
+        });
+
+        // Sound toggle
+        soundToggle.addEventListener('click', () => {
+            state.soundEnabled = !state.soundEnabled;
+            soundToggle.textContent = state.soundEnabled ? '🔊' : '🔇';
+            soundToggle.classList.toggle('active', state.soundEnabled);
+        });
+
+        // Difficulty buttons
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                CONFIG.gameSpeed = parseInt(btn.dataset.speed);
+            });
+        });
+
+        // Mode buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.gameMode = btn.dataset.mode;
+            });
+        });
+
+        // Button events
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        menuBtn.addEventListener('click', showMenu);
+
+        // ============== Modal System Setup ==============
+        setupModal([
+            { modalId: 'authModal', openBtnId: 'userBtn', closeBtnId: 'authModalClose' },
+            { modalId: 'profileModal', openBtnId: 'userBtn', closeBtnId: 'profileModalClose', onOpen: updateProfileModal },
+            { modalId: 'leaderboardModal', closeBtnId: 'leaderboardModalClose', onOpen: updateLeaderboard },
+            { modalId: 'levelModal', closeBtnId: 'levelModalClose', onOpen: updateLevelSelect },
+            { modalId: 'savesModal', closeBtnId: 'savesModalClose', onOpen: updateSavesList },
+        ]);
+
+        setupAuthModal();
+        setupLeaderboardModal();
+        setupLevelModal();
+        setupSavesModal();
+
+        // User button click handler
+        document.getElementById('userBtn').addEventListener('click', () => {
+            if (state.isLoggedIn) {
+                openModal('profileModal');
+            } else {
+                openModal('authModal');
+            }
+        });
+
+        // Logout button
+        document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+        // Check authentication on load
+        checkAuth();
+
+        // ============== Menu Buttons ==============
+        // Add menu buttons to start screen
+        const menuButtonsContainer = document.createElement('div');
+        menuButtonsContainer.className = 'menu-buttons';
+        menuButtonsContainer.innerHTML = `
+            <button class="menu-btn" id="levelsBtn">📊 关卡</button>
+            <button class="menu-btn" id="savesBtn">💾 存档</button>
+            <button class="menu-btn" id="leaderboardBtn">🏆 排行榜</button>
+            <button class="menu-btn endless" id="endlessBtn">♾️ 无尽模式</button>
+        `;
+        startScreen.appendChild(menuButtonsContainer);
+
+        document.getElementById('levelsBtn').addEventListener('click', () => openModal('levelModal'));
+        document.getElementById('savesBtn').addEventListener('click', () => {
+            if (!state.isLoggedIn) {
+                alert('Please login first');
+                openModal('authModal');
+            } else {
+                openModal('savesModal');
+            }
+        });
+        document.getElementById('leaderboardBtn').addEventListener('click', () => openModal('leaderboardModal'));
+        document.getElementById('endlessBtn').addEventListener('click', () => {
+            state.isEndless = true;
+            state.endlessStartTime = Date.now();
+            state.level = 1;
+            CONFIG.gridSize = 20;
+            CONFIG.obstacleCount = 0;
+            CONFIG.gameSpeed = 100;
+            document.getElementById('level').textContent = '∞';
+            startGame();
+        });
+
+        // Polyfill for roundRect if needed
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+                return this;
+            };
+        }
+
+        // Initial setup
+        initGame();
+        draw();
+    </script>
+</body>
+</html>
