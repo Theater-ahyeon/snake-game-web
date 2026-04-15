@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Snake Game Pro - 贪吃蛇</title>
+    <meta name="theme-color" content="#8eff71">
+    <meta name="description" content="一款基于 Kinetic Luminescence 设计系统的超级精美贪吃蛇游戏">
+    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* Kinetic Luminescence Design System */
@@ -1900,13 +1903,13 @@ function initAudio() {
 
 function playSound(type) {
     if (!state.soundEnabled || !audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
     const now = audioCtx.currentTime;
     switch (type) {
-        case 'eat':
+        case 'eat': {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
             osc.frequency.setValueAtTime(600, now);
             osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
             gain.gain.setValueAtTime(0.15, now);
@@ -1914,7 +1917,12 @@ function playSound(type) {
             osc.start(now);
             osc.stop(now + 0.1);
             break;
-        case 'die':
+        }
+        case 'die': {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
             osc.frequency.setValueAtTime(400, now);
             osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
             gain.gain.setValueAtTime(0.2, now);
@@ -1922,7 +1930,12 @@ function playSound(type) {
             osc.start(now);
             osc.stop(now + 0.3);
             break;
-        case 'powerup':
+        }
+        case 'powerup': {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
             osc.frequency.setValueAtTime(800, now);
             osc.frequency.exponentialRampToValueAtTime(1600, now + 0.15);
             gain.gain.setValueAtTime(0.12, now);
@@ -1930,6 +1943,50 @@ function playSound(type) {
             osc.start(now);
             osc.stop(now + 0.15);
             break;
+        }
+        case 'click': {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+            break;
+        }
+        case 'select': {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523, now);
+            osc.frequency.setValueAtTime(659, now + 0.05);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+            break;
+        }
+        case 'achievement': {
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.1, now + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.2);
+                osc.start(now + i * 0.1);
+                osc.stop(now + i * 0.1 + 0.2);
+            });
+            break;
+        }
     }
 }
 
@@ -2437,6 +2494,7 @@ function checkAchievements() {
 function showAchievementPopup(id) {
     const ach = ACHIEVEMENTS.find(a => a.id === id);
     if (!ach) return;
+    playSound('achievement');
     const popup = document.getElementById('achievementPopup');
     document.getElementById('achievementIcon').textContent = ach.icon;
     document.getElementById('achievementTitle').textContent = state.language === 'zh' ? ach.name : ach.nameEn;
@@ -2497,11 +2555,12 @@ document.querySelectorAll('.selector-btn[data-mode]').forEach(btn => {
     });
 });
 
-startBtn.addEventListener('click', startGame);
-restartBtn.addEventListener('click', startGame);
-menuBtn.addEventListener('click', showMenu);
+startBtn.addEventListener('click', () => { playSound('click'); startGame(); });
+restartBtn.addEventListener('click', () => { playSound('click'); startGame(); });
+menuBtn.addEventListener('click', () => { playSound('click'); showMenu(); });
 
 soundBtn.addEventListener('click', () => {
+    playSound('click');
     state.soundEnabled = !state.soundEnabled;
     soundBtn.textContent = state.soundEnabled ? '🔊' : '🔇';
 });
@@ -2517,9 +2576,9 @@ function setupModal(modals) {
         const modal = document.getElementById(modalId);
         const openBtn = openBtnId ? document.getElementById(openBtnId) : null;
         const closeBtn = document.getElementById(closeBtnId);
-        if (openBtn) openBtn.addEventListener('click', () => { if (onOpen) onOpen(); openModal(modalId); });
-        if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modalId));
-        modal.addEventListener('click', e => { if (e.target === modal) closeModal(modalId); });
+        if (openBtn) openBtn.addEventListener('click', () => { playSound('select'); if (onOpen) onOpen(); openModal(modalId); });
+        if (closeBtn) closeBtn.addEventListener('click', () => { playSound('click'); closeModal(modalId); });
+        modal.addEventListener('click', e => { if (e.target === modal) { playSound('click'); closeModal(modalId); } });
     });
 }
 
