@@ -1,15 +1,17 @@
 # Snake Game Pro - Backend
 
-Flask backend for the Snake Game Pro web version.
+Flask backend with WebSocket support for real-time updates.
 
 ## Features
 
 - **User Authentication**: Register, login, logout
 - **Game Saves**: Save and load game progress
-- **Leaderboards**: Global leaderboards by game mode
+- **Leaderboards**: Global leaderboards with real-time WebSocket updates
 - **Endless Mode Tracking**: Track endless mode statistics
 - **Level System**: 8 levels with unlock requirements
 - **User Progress**: Track total score, games played, achievements
+- **Friends System**: Add and view friends
+- **Daily Challenges**: Daily goals with rewards
 
 ## Setup
 
@@ -30,8 +32,10 @@ The server will start on `http://localhost:5000`
 
 ## API Endpoints
 
-### Authentication
+### WebSocket
+- `/ws` - WebSocket endpoint for real-time leaderboard updates
 
+### Authentication
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/auth/register` | POST | Register new user |
@@ -40,7 +44,6 @@ The server will start on `http://localhost:5000`
 | `/api/auth/profile` | GET | Get user profile |
 
 ### Game Saves
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/saves` | GET | Get all user saves |
@@ -50,50 +53,59 @@ The server will start on `http://localhost:5000`
 | `/api/saves/<id>` | DELETE | Delete a save |
 
 ### Leaderboard
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/leaderboard` | GET | Get leaderboard (query: game_mode) |
+| `/api/leaderboard` | GET | Get leaderboard |
 | `/api/leaderboard` | POST | Submit score |
 
 ### Endless Mode
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/endless` | POST | Submit endless record |
 | `/api/endless/stats` | GET | Get endless stats |
 
 ### Levels
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/levels` | GET | Get all levels |
 | `/api/levels/<id>/unlock` | POST | Check level unlock |
 
-### Statistics
+### Friends
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/friends` | GET | Get friends list |
+| `/api/friends` | POST | Add a friend |
 
+### Statistics
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/stats` | GET | Get user statistics |
 | `/api/achievements` | GET | Get all achievements |
 | `/api/achievements/unlock` | POST | Unlock achievement |
+| `/api/daily` | GET | Get daily challenge |
+| `/api/daily/complete` | POST | Complete daily challenge |
+
+## WebSocket Usage
+
+Connect to `/ws` and send:
+```json
+{"type": "subscribe", "game_mode": "all"}
+```
+
+Receive real-time leaderboard updates:
+```json
+{"type": "leaderboard_update", "data": [...]}
+```
 
 ## Database
 
 SQLite database `snake_game.db` is automatically created on first run.
 
 ### Tables
-
 - **users**: User accounts
 - **game_saves**: Saved game states
 - **user_progress**: User statistics
 - **leaderboard**: High scores
 - **endless_records**: Endless mode records
-
-## Frontend Connection
-
-The frontend connects to the backend at `http://localhost:5000/api`.
-
-To run the frontend, simply open `index.html` in a browser.
-
-For production, update `API_BASE` in `index.html` to point to your server.
+- **friends**: Friend relationships
+- **daily_challenges**: Daily challenge progress

@@ -4,18 +4,12 @@
     <img src="https://img.shields.io/badge/HTML5-Canvas-orange?style=for-the-badge" alt="HTML5">
     <img src="https://img.shields.io/badge/JavaScript-ES6+-yellow?style=for-the-badge" alt="JavaScript">
     <img src="https://img.shields.io/badge/Python-Flask-blue?style=for-the-badge" alt="Flask">
+    <img src="https://img.shields.io/badge/WebSocket-Supported-green?style=for-the-badge" alt="WebSocket">
     <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
 </p>
 
 <p align="center">
-    🎮 一款使用纯 HTML5 Canvas 开发的超级精美贪吃蛇游戏 - 现在支持完整前后端！
-</p>
-
-<p align="center">
-    <img src="https://img.shields.io/badge/Platform-Windows-blue?style=flat-square" alt="Platform">
-    <img src="https://img.shields.io/badge/Platform-macOS-blue?style=flat-square" alt="Platform">
-    <img src="https://img.shields.io/badge/Platform-Linux-blue?style=flat-square" alt="Platform">
-    <img src="https://img.shields.io/badge/Platform-Mobile-blue?style=flat-square" alt="Platform">
+    🎮 一款功能完整的超级精美贪吃蛇游戏 - 支持前后端、实时排行榜、道具系统、社交功能！
 </p>
 
 ---
@@ -26,10 +20,9 @@
 - 🌟 霓虹发光效果的蛇身
 - ✨ 粒子爆炸特效
 - 💫 食物呼吸动画
-- 🔮 渐变背景
-- 🎨 动态边框光效
+- 🔮 渐变背景 + 星空效果
+- 🎨 5种主题切换(暗黑/星空/海洋/日落/森林)
 - ⌨️ 按键反馈动画
-- 🌌 星空背景
 
 ### 🎮 游戏模式
 - **经典** - 经典模式，无障碍物
@@ -42,20 +35,41 @@
 - 逐步解锁机制（根据累计分数）
 - 不同的地图大小、障碍物数量和速度
 
+### 💊 道具系统
+- ⚡ 加速道具 - 短时间内移动更快
+- 🛡️ 护盾道具 - 免疫一次碰撞
+- 2️⃣ 双倍得分道具 - 短时间内得分翻倍
+
+### 🏆 成就系统
+- 14个成就徽章
+- 实时弹窗通知
+- 进度持久化
+
+### 🎯 每日挑战
+- 每日特殊任务
+- 完成奖励
+
 ### 💾 存档系统
 - 游戏进度保存/读取（需登录）
 - 断点续玩
-- 自动存档支持
 
 ### 👤 用户系统
 - 用户注册/登录
 - 个人资料页面
 - 游戏统计数据
 
+### 👥 社交功能
+- 好友系统
+- 战绩分享（生成图片）
+- 观战模式
+
 ### 🏆 排行榜
 - 全球排行榜
 - 分模式排名（经典/障碍/幽灵/无尽）
-- 无尽模式记录
+- **实时WebSocket更新**
+
+### 🌍 国际化
+- 中文/English 语言切换
 
 ---
 
@@ -107,7 +121,7 @@ python -m http.server 8000
 
 ```
 snake_game_web/
-├── index.html          # 前端主文件
+├── index.html          # 前端主文件（完整功能）
 ├── backend/
 │   ├── app.py          # Flask 后端应用
 │   ├── requirements.txt # Python 依赖
@@ -124,9 +138,11 @@ snake_game_web/
 - **CSS3** - 精美动画效果
 - **Vanilla JavaScript** - 游戏逻辑
 - **LocalStorage** - 本地数据持久化
+- **WebSocket** - 实时排行榜
 
 ### 后端
 - **Python Flask** - Web 框架
+- **Flask-Sock** - WebSocket支持
 - **SQLite** - 数据库
 - **Flask-CORS** - 跨域支持
 
@@ -138,18 +154,6 @@ snake_game_web/
 2. 吃食物获得 **+10 分**，蛇身长度 **+1**
 3. 撞到墙壁、障碍物或自己的身体 **游戏结束**
 4. 尽量获得更高的分数吧！
-
----
-
-## 🏆 排行榜说明
-
-| 模式 | 说明 |
-|------|------|
-| 全部 | 所有玩家的综合排名 |
-| 经典 | 经典模式排名 |
-| 障碍 | 障碍物模式排名 |
-| 幽灵 | 幽灵模式排名 |
-| 无尽 | 无尽模式排名 |
 
 ---
 

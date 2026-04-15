@@ -9,11 +9,78 @@ from datetime import datetime
 from functools import wraps
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
+from flask_sock import Sock
+import threading
+import json
 import hashlib
 import secrets
 
 app = Flask(__name__)
 CORS(app)
+sock = Sock(app)
+
+# Connected WebSocket clients for real-time leaderboard
+connected_clients = []
+client_lock = threading.Lock()
+
+def broadcast_leaderboard_update(game_mode='all'):
+    """Broadcast leaderboard update to all connected WebSocket clients"""
+    with client_lock:
+        for client in connected_clients:
+            try:
+                leaderboard = get_leaderboard_data(game_mode)
+                client.send(json.dumps({
+                    'type': 'leaderboard_update',
+                    'data': leaderboard
+                }))
+            except:
+                pass
+
+def get_leaderboard_data(game_mode='all', limit=20):
+    """Get leaderboard data"""
+    db = get_db()
+    if game_mode == 'all':
+        scores = db.execute('''
+            SELECT u.username, l.score, l.level, l.game_mode, l.achieved_at
+            FROM leaderboard l
+            JOIN users u ON l.user_id = u.id
+            ORDER BY l.score DESC
+            LIMIT ?
+        ''', (limit,)).fetchall()
+    else:
+        scores = db.execute('''
+            SELECT u.username, l.score, l.level, l.game_mode, l.achieved_at
+            FROM leaderboard l
+            JOIN users u ON l.user_id = u.id
+            WHERE l.game_mode = ?
+            ORDER BY l.score DESC
+            LIMIT ?
+        ''', (game_mode, limit)).fetchall()
+    return [dict(s) for s in scores]
+
+# WebSocket endpoint
+@sock.route('/ws')
+def websocket(ws):
+    """WebSocket endpoint for real-time updates"""
+    with client_lock:
+        connected_clients.append(ws)
+    try:
+        while True:
+            data = ws.receive()
+            try:
+                msg = json.loads(data)
+                if msg.get('type') == 'subscribe':
+                    game_mode = msg.get('game_mode', 'all')
+                    leaderboard = get_leaderboard_data(game_mode)
+                    ws.send(json.dumps({'type': 'leaderboard', 'data': leaderboard}))
+            except json.JSONDecodeError:
+                pass
+    except:
+        pass
+    finally:
+        with client_lock:
+            if ws in connected_clients:
+                connected_clients.remove(ws)
 
 # 配置
 app.config['SECRET_KEY'] = secrets.token_hex(32)
@@ -399,28 +466,12 @@ def add_score():
         (user['id'], game_mode, score, level)
     )
 
-    # 更新用户进度
-    progress = db.execute('SELECT * FROM user_progress WHERE user_id = ?', (user['id'],)).fetchone()
-    if progress:
-        db.execute('''
-            UPDATE user_progress
-            SET total_score = total_score + ?,
-                games_played = games_played + 1,
-                max_level = MAX(max_level, ?),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-        ''', (score, level, user['id']))
-    else:
-        db.execute(
-            'INSERT INTO user_progress (user_id, total_score, games_played, max_level) VALUES (?, ?, ?, ?)',
-            (user['id'], score, 1, level)
-        )
-
     db.commit()
 
-    return jsonify({'message': '分数提交成功'})
+    # Broadcast update via WebSocket
+    broadcast_leaderboard_update(game_mode)
 
-# ==================== 无尽模式路由 ====================
+    return jsonify({'message': '分数提交成功'})
 
 @app.route('/api/endless', methods=['POST'])
 def submit_endless():
